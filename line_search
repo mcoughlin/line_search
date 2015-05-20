@@ -1,0 +1,739 @@
+#!/usr/bin/env python
+"""
+%prog [options]
+Tomoki Isogai (isogait@carleton.edu)
+   
+"""
+
+from __future__ import division
+
+import os
+import sys
+import optparse
+import glob
+import cPickle
+import time
+import numpy
+import shutil
+
+import matplotlib
+matplotlib.use('Agg')
+matplotlib.rcParams.update({
+        "font.size": 8.0,
+        "axes.titlesize": 10.0,
+        "axes.labelsize": 10.0,
+        "xtick.labelsize": 8.0,
+        "ytick.labelsize": 8.0,
+        "legend.fontsize": 8.0})
+
+import pylab
+
+from pycoh import io
+
+import scipy.io
+
+
+__author__ = "Tomoki Isogai <isogait@carleton.edu>"
+__version__ = "1.0"
+
+def parse_commandline():
+    """
+    Parse the options given on the command-line.
+    """
+    parser = optparse.OptionParser(usage=__doc__,version=__version__)
+    parser.add_option("-r", "--result_dir",
+                      help="Result files from pycoh in pickle. Required.")
+    parser.add_option("-o", "--out_dir", default = "results",\
+        help="Output directory. (Default: results)")
+    parser.add_option("-S", "--segfile", 
+                      help="Path to the segment file used. Required.")
+    parser.add_option("-P", "--param_file", default=None,
+                      help="Path to the param file used for setup if you have one.")
+    parser.add_option("-C", "--pycoh_param", default=None,
+                      help="Path to the pycoh param file used if you have one.")
+    parser.add_option("-t", "--threshold", type="float",
+                      help="Threshold for significant lines. This value times sigma will be used as a threshold.")
+    parser.add_option("-M", "--max_ff", type="float", 
+                      help="Max frequency. (Default: max possible)")
+    parser.add_option("-m", "--min_ff", type="float",
+                      help="Min frequency. (Default: min possible)")
+    parser.add_option("-s", "--show_plot", action="store_true",
+                      default=False, help="Show plot on display.")
+    parser.add_option("-v", "--verbose", action="store_true",\
+                      default=False, help="Run verbosely.")
+    
+    opts, args = parser.parse_args()
+    
+    # check if necessary input exists
+    if opts.result_dir is None:
+        print >> sys.stderr, "Error: --result_dir is a required parameter"
+        sys.exit(1)
+
+    if opts.segfile is None:
+        print >> sys.stderr, "Error: --segfile is a required parameter"        
+        sys.exit(1)
+
+    if opts.threshold is None:
+         print >> sys.stderr, "Error: --threshold is a required parameter"
+         sys.exit(1)
+
+    # make an output directory if it doesn't exist yet
+    if not os.path.exists(opts.out_dir): os.makedirs(opts.out_dir)
+        
+    # check if the file exists
+    for o in ("segfile", "param_file", "pycoh_param"):
+      if getattr(opts,o) != None:
+        if not os.path.isfile(getattr(opts,o)):
+          print >> sys.stderr, "Error: %s not found"%getattr(opts,o)
+          sys.exit(1)
+
+    # show parameters
+    if opts.verbose:
+        print >> sys.stderr, ""
+        print >> sys.stderr, "running line_search..."
+        print >> sys.stderr, "version: %s"%__version__
+        print >> sys.stderr, ""
+        print >> sys.stderr, "***************** PARAMETERS ********************"
+        for o in opts.__dict__.items():
+          print >> sys.stderr, o[0]+":"
+          print >> sys.stderr, o[1]
+        print >> sys.stderr, ""
+        
+    return opts
+
+def find_channel_name(channel):
+  """
+  find channel name from pycoh output file name
+  """
+  # get rid of path and extension if exists
+  channel = os.path.splitext(os.path.basename(channel))[0]
+  name_parts = channel.split("_",1)[1].split("+")[-1].split("-")
+  return "-".join(name_parts[:2])
+
+def rename(src):
+  """
+  If src alaready exists, this function rename it so that new file/directory
+   won't overwite
+  """
+  index = 0; dst = os.path.normpath(src)
+  while os.path.exists(dst):
+    index += 1
+    dst = "%s.%d"%(os.path.normpath(src),index)
+  if index > 0:
+    print >> sys.stderr, "Warning: %s already exists, renaming the existing one to %s and continuing..."%(src,dst)
+    os.renames(src,dst)
+
+
+def exclude_harmonics(ff, harmonics, width):
+    """
+    create a boolean array which contains False for frequencies around integer
+    multible of harmonics around the width specified, True otherwise
+    """
+    good_freq = numpy.array(len(ff)*[True],bool)
+    har = int(ff[0]/harmonics)+harmonics
+    wid = width
+    for i in range(len(ff)):
+        if ff[i] > har - wid:
+            if ff[i] < har + wid:
+                good_freq[i] = False
+            else:
+                har += harmonics
+                wid += width
+
+    return good_freq
+
+def cluster_lines(sig_ff,sig_coh):
+  """
+  """
+  start_f = sig_ff[0]
+  end_f = sig_ff[0]
+  peak_f = sig_ff[0]
+  max_coh = sig_coh[0]
+  cluster = []
+  for f, c in sorted(zip(sig_ff,sig_coh)):
+    if f - end_f <= df * 50:
+      end_f = f
+      if max_coh < c:
+        peak_f = f
+        max_coh = c
+    else:
+      cluster.append((start_f,peak_f,end_f,max_coh))
+      start_f = f
+      end_f = f
+      peak_f = f
+      max_coh = c
+  # get the last one
+  cluster.append((start_f,peak_f,end_f,max_coh))
+
+  return cluster
+
+def plot_psd():
+  plot_name = find_channel_name(psd_f)
+  if opts.verbose: 
+      print "plotting psd..."
+
+  if len(psd[psd>0]) != 0:
+    pylab.loglog(ff,psd,'b',label='_nolegend_')
+  
+  min_freq = ff[0] > 1 and ff[0] or 1
+  pylab.xlim([min_freq,ff[-1]])
+  pylab.title(plot_name,fontsize=12)
+  pylab.xlabel("frequency (Hz)")
+  pylab.ylabel("PSD")
+  pylab.legend(loc='lower left')
+  pylab.grid(True)
+  if opts.show_plot:
+      if opts.verbose:
+          print "showing the plot..."
+      pylab.show()
+  if opts.verbose:
+      print "saving..."
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+"_psd.png"))
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+"_psd-thumbnail.png"),dpi=60)
+  pylab.close()
+
+def plot_coh(min_freq,max_freq,plot_name):
+  if len(coh[coh>0]) != 0:
+    pylab.axhline(y=thresh,c='r',lw=3,label="Threshold:\n %e"%thresh)
+    pylab.semilogx(ff[eff_index],coh[eff_index],'b',markersize=3,label='_nolegend_')  
+    # plot 1/N line
+    pylab.axhline(y=inv_N,c='k',lw=3,label='1/N:\n %e'%inv_N)
+
+  pylab.ylim(ymax=1)
+  min_freq = min_freq > 1 and min_freq or 1
+  pylab.xlim([min_freq,max_freq])
+
+  pylab.title(file_prefix,fontsize=12)
+  pylab.xlabel("frequency (Hz)")
+  pylab.ylabel("coherence")
+  pylab.legend(loc='lower right')
+  pylab.grid(True)
+  if opts.show_plot:
+    if opts.verbose:
+      print "showing the plot..."
+    pylab.show()
+  if opts.verbose:
+    print "saving the plots..."
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+".png"))
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+"-thumbnail.png"),dpi=60)
+  pylab.close()
+
+def plot_maxcoh(min_freq,max_freq,plot_name):
+  if len(coh[coh>0]) != 0:
+    pylab.axhline(y=thresh,c='r',lw=3,label="Threshold:\n %e"%thresh)
+    pylab.plot(ff[eff_index],coh[eff_index],'b',markersize=3,label='_nolegend_')  
+    # plot 1/N line
+    pylab.axhline(y=inv_N,c='k',lw=3,label='1/N:\n %e'%inv_N)
+
+  pylab.ylim(ymax=1)
+  pylab.xlim([min_freq,max_freq])
+
+  pylab.title(file_prefix,fontsize=12)
+  pylab.xlabel("frequency (Hz)")
+  pylab.ylabel("coherence")
+  pylab.legend(loc='lower right')
+  pylab.grid(True)
+  if opts.show_plot:
+    if opts.verbose:
+      print "showing the plot..."
+    pylab.show()
+  if opts.verbose:
+    print "saving the plots..."
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+".png"))
+  pylab.savefig(os.path.join(opts.out_dir, "plots", plot_name+"-thumbnail.png"),dpi=60)
+  pylab.close()
+
+def save_lines():
+  """
+  Find significant lines, cluster and print them to txt file, sorted by
+  frequency.
+  This returns line at peak, in a form:
+  (start freq, peak freq, end freq, coherence)
+  """
+  # list significant lines
+  #sig_lines = significance[good_freq][above_thresh[good_freq]].tolist()
+  sig_freqs = ff[eff_index][coh[eff_index]>thresh].tolist()
+  sig_cohs = coh[eff_index][coh[eff_index]>thresh].tolist()
+
+  # save all the data in mat file
+  if opts.verbose:
+    print >> sys.stderr, "saving the data in mat file..."
+  # prepare the dictionary
+  data_dict = {'coh': coh, 'freqs' : ff, 'significant_freqs' : sig_freqs,\
+               'significant_coh': sig_cohs}
+  filename = os.path.join(opts.out_dir, "data", file_prefix+"_data.mat")
+  scipy.io.savemat(filename, data_dict)
+
+  # cluster
+  if len(sig_freqs)>0:
+    cluster = cluster_lines(sig_freqs, sig_cohs)
+    sorted_cluster = sorted(cluster,reverse=True,cmp=lambda x,y:cmp(x[3],y[3]))
+    peak = sorted_cluster[0]
+  else:
+    cluster = []
+    sorted_cluster = []
+    peak = None
+ 
+  results[file_prefix] = {"cluster": sorted_cluster}
+  results[file_prefix]["peak"] = peak
+
+  summary = {"Total Time": abs(coh.metadata.segments),
+             "Theoretical Sigma": inv_N,
+             "Mean": coh.mean(),
+             "Standard Deviation": coh.std(),
+             "Threshold": thresh,
+             "Number of Significant Lines": len(cluster)}
+  results[file_prefix]["summary"] = summary
+
+  # sort by frequency, clustered
+  filename = os.path.join(opts.out_dir, "lines", file_prefix+"_sorted_by_frequency_clustered.txt")
+  contents = ['# (Start,  Peak,  End) Frequency (Hz)      \t# Peak Coherence']
+  contents += ['(%.3f,  \t%.3f,  \t %.3f)   \t%.3f'%(f[0], f[1],f[2], f[3]) for f in cluster]
+  open(filename,'w').write("\n".join(contents))
+
+  return peak
+
+def save_lines2(channel,coinc_channel):
+  """
+  Create a html page that list significant lines sorted by coherence.
+  For each line, list coincident channels.
+  coinc_channel is dictionary in a form:
+  (line: {channel name: line})
+  where line is a tuple:
+  (start freq, peak freq, end freq, coherence)
+  """
+
+  ############################## header ######################################
+
+  title = "%s Significant Lines"%channel
+
+  contents=["""
+  <html>
+  <head>
+  <meta content="text/html; charset=ISO-8859-1"
+  http-equiv="content-type">
+  <title>%s</title>
+  </head>
+  <body>
+  <big><big><big>%s</big></big></big><br>
+  <br>
+  """%(title,title)]
+
+  ################################# main #####################################
+  
+  # sort to order by coherence
+  for i, c in enumerate(sorted(coinc_channel.keys(),cmp=lambda x,y: cmp(y[3],x[3]))):
+    contents.append('<big><big><big>%d. <font color="900000"> Coherence: %.3f </font></big><br>(Start: %.3f Hz, Peak: %.3f Hz, End: %.3f Hz)</big></big><br><br>'%(i+1, c[3], c[0], c[1], c[2]))
+    contents.append('<big> Coincident Channels (Ordered by coherence): </big><br>')
+    contents.append('<table border="0" cellspacing="30"><tr>')
+    contents.append("<td>Channel Name</td><td>Peak Coherence</td><td>(Start, Peak, End) Frequency (Hz)</td></tr>")
+    # sort to order by coherence
+    for cc in sorted(coinc_channel[c].keys(),cmp=lambda x,y: cmp(coinc_channel[c][y][3],coinc_channel[c][x][3])):
+      channel_name = cc
+      line = coinc_channel[c][cc]
+      chan_wiki = "https://ldas-jobs.ligo.caltech.edu/cgi-bin/chanwiki?%s"%channel_name
+      contents.append('<tr><td><a href="../channelPages/%s.html">%s</a>  (<a href="%s">wiki</a>)</td><td>%.3f</td><td>(%.3f, %.3f, %.3f)</td></tr>'%(channel_name,channel_name,chan_wiki,line[3],line[0],line[1],line[2]))
+    contents.append('</table><br><br>')
+
+  
+  ############################## closing ######################################
+  
+  contents.append("""
+  <small>
+  This page is created at %s
+  </small>
+  </body>
+  </html>
+  """%(time.strftime('%m-%d-%Y %H:%M:%S', time.localtime())))
+  
+  ## write to a page
+  filename = os.path.join(opts.out_dir,"lines",channel+"_sorted_by_coherence_clustered.html")
+  open(filename,'w').write("\n".join(contents))
+
+
+def channelPage(channel_name,summary):
+  """
+  Make a webpage for each channel.
+  """
+  user=os.environ['USER']
+  curTime=time.strftime('%m-%d-%Y %H:%M:%S',time.localtime())
+  ch = channel_name # short notation 
+  line_c = ch + "_sorted_by_coherence_clustered.html"
+  line_f = ch + "_sorted_by_frequency_clustered.txt"
+  data_mat = ch + "_data.mat"
+  coh_pickle = os.path.basename([f for f in coh_list if f.find(ch) != -1][0])
+  psd_pickle = os.path.basename([f for f in psd_list if f.find(ch) != -1][0])
+  
+  # each corresponding to a section of plot in html
+  wholeRange = division("wholeRange", "Coherence", ch+"_coh")
+  powerSpectrum = division("powerSpectrum", "PSD", ch+"_psd")
+  maxCoh = division("maxCoh","Max Coherence", ch+"_max")
+
+  ################## main html code for the report page ####################
+    
+  contents = """
+  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+  <html>
+  <head>
+    <title>%s</title>
+    <link rel="stylesheet" href="vstyle.css" type="text/css">
+    <script type="text/javascript">
+  function toggleVisible(division) {
+    if (document.getElementById("div_" + division).style.display == "none") {
+      document.getElementById("div_" + division).style.display = "block";
+      document.getElementById("input_" + division).checked = true;
+    } else {
+      document.getElementById("div_" + division).style.display = "none";
+      document.getElementById("input_" + division).checked = false;
+    } 
+  }
+  function gotoSection(section) {
+    document.getElementById("div_" + section).style.display = "block";
+    document.getElementById("input_" + section).checked = true;
+    window.location.hash = section;
+  }
+    </script>
+  </head>
+  <body>
+  <div class="title">
+  <h1> %s </h1>
+  </div>
+  <div class="index">
+  <h2>Index</h2>
+  <p>
+  <a href="javascript:gotoSection('summary')">Summary</a><br>
+  %s
+  %s
+  %s
+  <a href="../lines/%s">Significant Lines<br>(sorted by freq)</a><br>
+  <a href="../lines/%s">Significant Lines<br> (sorted by coh)</a><br>
+  <a href="../info/%s">Analyzed Segments</a><br>
+  <a href="../data/%s">Data in .mat</a><br>
+  <a href="../info/%s">Configuration</a><br>
+  <a href="../info/%s">Pycoh Configuration</a><br>
+  </p>
+  </div>
+  <div class="content">
+  <!--summary-->
+  %s
+  <!--whole range  plot-->
+  %s
+  <!--PSD  plot-->
+  %s
+  <!--max coh  plot-->
+  %s
+  </div>
+  <div class="footer">
+  Created by user %s on %s<br>
+  </div>
+  </body>
+  </html>
+  """ % (ch,ch,wholeRange[0],powerSpectrum[0],maxCoh[0],line_f,line_c,segment_name,data_mat,param_name,pycoh_ini_name,summary_maker(summary),wholeRange[1],powerSpectrum[1],maxCoh[1],user,curTime)
+         
+  # write down
+  chan_page = open(baseDir+"/channelPages/%s.html"%(ch),"w")
+  chan_page.write(contents)
+
+def summary_maker(summary):
+  """
+  This function makes a summary section for channel page and returns a html 
+  code for the summary part, which will be inserted into the body.
+  """
+          
+  report =\
+  """
+  <a name="Summary"></a>
+  <h2 class="Summary"><input id="input_Summary" checked="checked"
+   onclick="toggleVisible('Summary');" type="checkbox">Summary
+  </h2>
+  <div id="div_Summary" style="display: block;">
+  <a name="report"></a>
+  <h3>
+  <input id="input_report" type="checkbox" checked
+  onclick="toggleVisible('report');" />
+  Coherence Infomation
+  </h3>
+  <br />
+  <div id="div_report" style="display: block;">
+  <center>
+  <table>
+  <tbody>
+  <tr><td><b>Total Time:</b></td> <td>%d s</td>
+  <tr><td><b>Theoretical Sigma:</b></td> <td>%.3e</td>
+  <tr><td><b>Mean:</b></td> <td>%.3e</td>
+  <tr><td><b>Standard Deviation:</b></td> <td>%.3e</td>
+  <tr><td><b>Threshold:</b></td> <td>%.3e</td>
+  <tr><td><b>Number of Significant Lines:</b></td> <td>%d</td>
+  </tbody></table></center></div></div>
+  """%(summary["Total Time"],summary["Theoretical Sigma"],summary["Mean"],summary["Standard Deviation"], summary["Threshold"], summary["Number of Significant Lines"])
+
+  return report
+
+def division(tag,title,ch):
+  """
+  """
+  pre = """
+  <a href="javascript:gotoSection('%s')">%s</a><br>
+  """%(tag,title)
+
+  body = """
+  <a name="%s"></a>
+  <h2 class="%s"><input id="input_%s"
+   checked="checked" onclick="toggleVisible('%s');"
+   type="checkbox">%s
+  </h2>
+  <div id="div_%s" style="display: block;">
+  <a name="%s"></a>
+  <a id="a_%s-%s_plot"
+   href="../plots/%s.png"><img
+   id="img_%s-%s_plot"
+   src="../plots/%s-thumbnail.png"
+   alt="%s_%s_plot"></a><br>
+  </div>
+  """%(tag,tag,tag,tag,title,tag,tag,ch,tag,ch,ch,tag,ch,ch,tag)
+
+  return pre, body
+
+def reportPage(peaks):
+  """
+  creates summary report page
+  """
+
+  ############################## header ######################################
+
+  title = "Coherence Lines"
+
+  contents=["""
+  <html>
+  <head>
+  <meta content="text/html; charset=ISO-8859-1"
+  http-equiv="content-type">
+  <title>%s</title>
+  </head>
+  <body>
+  <big><big><big>%s</big></big></big><br>
+  <br>
+  """%(title,title)]
+
+  ############################# body #########################################
+
+  contents.append("""
+    <br><br>
+    <table border="1">
+    <tbody>
+    <tr>
+    <th>Channel</th>
+    <th>Max Coherence</th>
+    <th>Number of Significant Lines</th>
+    <th>Mean</th>
+    <th>Standard Deviation</th>
+    <th>Threshold</th>
+    </tr>""")
+
+  for p in sorted(peaks,cmp=lambda x,y: cmp(y[1][3],x[1][3])):
+    contents.append("""
+            <tr>
+            <td><a href="channelPages/%s.html">%s</a></td>
+            <td>%.3e</td>
+            <td>%d</td>
+            <td>%.3e</td>
+            <td>%.3e</td>
+            <td>%.3e</td>
+            </tr>
+            """%(p[0],p[0],p[1][3],results[p[0]]['summary']['Number of Significant Lines'],results[p[0]]['summary']['Mean'],results[p[0]]['summary']['Standard Deviation'],results[p[0]]['summary']['Threshold']))
+
+  contents.append("</tbody></table><br><br>")
+
+
+  ################################# closing ##################################
+  user=os.environ['USER']
+  curTime=time.strftime('%m-%d-%Y %H:%M:%S',time.localtime())
+  contents.append("""
+  <small>
+  This page was created by user %s on %s
+  </small></body></html>
+  """%(user,curTime))
+
+  ## save the page
+  chan_page = open("%s/index.html"%(opts.out_dir),"w")
+  chan_page.write("".join(contents))
+
+
+def find_coincident(structure,df,result_dict):
+  """
+  if there is overlap, coincident
+  """
+  coinc = {}
+  for r in result_dict:
+    for c in result_dict[r]['cluster']:
+      if structure[0] < c[2] + 2 * df and c[0] - df * 2 < structure[2]:
+        coinc[r] = c
+        break
+  return coinc
+
+
+# =============================================================================
+#
+#                                   MAIN
+#
+# =============================================================================
+  
+
+## parse commandline
+opts = parse_commandline()
+
+## setup
+baseDir = os.path.abspath(opts.out_dir)
+if opts.verbose:
+  print >> sys.stderr, "setting up directory/files in %s..."%baseDir
+
+info_dir = os.path.join(baseDir,"info")
+if os.path.isdir(info_dir):
+  rename(info_dir)
+os.makedirs(info_dir)
+
+## get segment file
+file_name = os.path.basename(opts.segfile)
+segment_name = file_name
+if not os.path.isfile("%s/info/%s"%(baseDir,file_name)):
+  exitNum = os.system("cp %s %s/info/"%(opts.segfile,baseDir))
+  if exitNum != 0:
+    print >>sys.stderr, "Warning: could not copy segment file, ignoring"
+        
+## get param file
+if opts.param_file != None:
+  file_name = os.path.basename(opts.param_file)
+  param_name = file_name
+  if not os.path.isfile("%s/info/%s"%(baseDir,file_name)):
+    exitNum = os.system("cp %s %s/info/"%(opts.param_file,baseDir))
+    if exitNum != 0:
+      print >>sys.stderr, "Warning: could not copy param file, ignoring"
+else:
+  param_name = ""      
+
+## get param file
+if opts.pycoh_param != None:
+  file_name = os.path.basename(opts.pycoh_param)
+  pycoh_ini_name = file_name
+  if not os.path.isfile("%s/info/%s"%(baseDir,file_name)):
+    exitNum = os.system("cp %s %s/info/"%(opts.pycoh_param,baseDir))
+    if exitNum != 0:
+      print >>sys.stderr, "Warning: could not copy pycoh param file, ignoring"
+else:
+  pycoh_ini_name = ""      
+
+data_dir = os.path.join(baseDir,"data")
+if os.path.isdir(data_dir):
+  rename(data_dir)
+os.makedirs(data_dir)
+
+lines_dir = os.path.join(baseDir,"lines")
+if os.path.isdir(lines_dir):
+  rename(lines_dir)
+os.makedirs(lines_dir)
+
+channelPages_dir = os.path.join(baseDir,"channelPages")
+if os.path.isdir(channelPages_dir):
+  rename(channelPages_dir)
+os.makedirs(channelPages_dir)
+
+vstyle_loc = 'inputfiles/vstyle.css'
+exitNum = os.system("cp %s %s/channelPages/"%(vstyle_loc,baseDir))
+
+print "cp %s %s/channelPages/"%(vstyle_loc,baseDir)
+
+if exitNum > 0:
+  print >>sys.stderr, "Error: %s not found"%vstyle_loc
+  sys.exit(1)
+
+plots_dir = os.path.join(baseDir,"plots")
+if os.path.isdir(plots_dir):
+  rename(plots_dir)
+os.makedirs(plots_dir)
+
+
+coh_list = [os.path.join(opts.result_dir,f) for f in os.listdir(opts.result_dir) if f.find("COH") != -1 and f.find(".pickle.gz") != -1]
+psd_list = [os.path.join(opts.result_dir,f) for f in os.listdir(opts.result_dir) if f.find("PSD") != -1 and f.find(".pickle.gz") != -1]
+
+results = {}
+
+for coh_f in coh_list:
+  if opts.verbose: 
+    print >> sys.stderr, "gathering info from %s"%coh_f
+
+  # get info
+  coh_data = io.load_dict(coh_f)
+  coh = abs(coh_data['coh'])**2
+  ff = coh_data['ff']
+  df = coh_data['coh'].metadata.df
+  Tchunks = coh_data['Tchunks']
+  window_length = [int(o.split()[1]) for o in coh_data['coh'].metadata.comments[0].split("--") if o.startswith('window-length-seconds')][0]
+  if opts.min_ff is not None:
+    min_ff = opts.min_ff
+  else:
+    min_ff = ff[0]
+  if opts.max_ff is not None:
+    max_ff = opts.max_ff
+  else:
+    max_ff = ff[-1]
+
+  # figure out 1/N level (expectation value for coherence)
+  N = Tchunks * window_length * df
+  inv_N = 1 / N
+  thresh = inv_N * opts.threshold
+  # make sure it's below 1, otherwise use 0.95 (arbitrary high value)
+  thresh = thresh < 1 and thresh or 0.95
+
+
+  # exclude 60 harmonics
+  no_harm = exclude_harmonics(ff, 60, 0.1)
+  eff_index = (ff > min_ff) & (ff < max_ff) & no_harm
+
+  file_prefix = find_channel_name(coh_f)
+
+  # save the data
+  if opts.verbose:
+    print >> sys.stderr, "saving data / prominent lines..."
+  max_coh = save_lines()
+
+  plot_coh(min_ff,max_ff,file_prefix+"_coh")
+
+
+  # plot biggest coherence +- 1 Hz
+  if max_coh != None:
+    # use clustered range if available
+    plot_maxcoh(max_coh[0]-1,max_coh[2]+1,file_prefix+"_max")
+  else:
+    max_coh = max(zip(coh,ff))
+    results[file_prefix]['peak'] = (max_coh[1],max_coh[1],max_coh[1],max_coh[0])
+    plot_maxcoh(max_coh[1]-1,max_coh[1]+1,file_prefix+"_max")
+
+
+## plot PSD
+for psd_f in psd_list:
+  psd_data = io.load_dict(psd_f)
+  psd = psd_data['totppc'] / psd_data['totweight']
+  ff = [f * psd_data['totppc'].metadata.df for f in range(len(psd))]
+  plot_psd()
+
+## make channel page
+peaks = []
+for r in results:
+  coinc_channel = {}
+  for c in results[r]['cluster']:
+    coinc_channel[c] = find_coincident(c,df,results)
+
+  save_lines2(r,coinc_channel)
+
+  channelPage(r,results[r]['summary'])
+
+  peaks.append((r,results[r]['peak']))
+
+
+# make a reort page
+reportPage(peaks)
+
+os.system("rm %s"%(os.path.join(opts.result_dir,"*.pickle.gz")))
+
+print >> sys.stderr, "Done!"
+

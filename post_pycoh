@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# the first argument should be the return value from the node
+# second value should be the path to the result directory
+
+if [ $1 -eq 0 ]
+then
+echo "moving result files"
+mv results/*/*-COH_* $2/
+mv results/*/*-PSD_* $2/
+rm results/*/*-CSD_*
+else
+echo "pycoh failed"
+exit 1
+fi

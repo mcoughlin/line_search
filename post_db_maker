@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# the first argument should be the return value from the node
+# second value should be the path to the result directory
+
+if [ $1 -eq 0 ]
+then
+echo "moving database..."
+scp $2/*.db mat@virgo.physics.carleton.edu:/home/mat/Data/new/
+else
+echo "db_maker failed"
+exit 1
+fi
