@@ -15,6 +15,7 @@ import cPickle
 import time
 import numpy
 import shutil
+from pylal import metaarray
 
 try:
     import sqlite3
@@ -197,7 +198,6 @@ def find_coincident(structure,df,result_dict):
 opts = parse_commandline()
 
 coh_list = [os.path.join(opts.result_dir,f) for f in os.listdir(opts.result_dir) if f.find("COH") != -1]
-
 try:
   rename(opts.out_name)
   working_filename = KW_veto_utils.get_connection_filename(\
@@ -210,51 +210,55 @@ try:
   for coh_f in coh_list:
     if opts.verbose: 
       print >> sys.stderr, "gathering info from %s"%coh_f
-  
     # get info
     coh_data = io.load_dict(coh_f)
     coh = abs(coh_data['coh'])**2
     ff = coh_data['ff']
-    df = coh_data['coh'].metadata.df
-    Tchunks = coh_data['Tchunks']
-    window_length = [int(o.split()[1]) for o in coh_data['coh'].metadata.comments[0].split("--") if o.startswith('window-length-seconds')][0]
-    #min_ff = ff[0]
-    #max_ff = ff[-1]
-  
-    # figure out 1/N level (expectation value for coherence)
-    N = Tchunks * window_length * df
-    inv_N = 1 / N
-    thresh = inv_N * opts.threshold
-    # make sure it's below 1, otherwise use 0.95 (arbitrary high value)
-    thresh = thresh < 1 and thresh or 0.95
-  
-  
-    # exclude 60 harmonics
-    #no_harm = exclude_harmonics(ff, 60, 0.1)
-    #eff_index = (ff > opts.min_ff) & (ff < opts.max_ff) & no_harm
-  
-    eff_index = (ff > 0) # just index; do nothing
-  
-    ifo, channel, gps_time = find_channel_name(coh_f)
-  
-    # save the data
-    if opts.verbose:
-      print >> sys.stderr, "saving data / prominent lines..."
-    save_lines()
-  
-  
+    f = open("/home/nathaniel.strauss/coh1test.txt",'w')
+    for i in coh:
+        f.write(str(i) +"\n")
+    f.close()
+    if isinstance(coh_data['coh'], metaarray.Spectrum):
+      df = coh_data['coh'].metadata.df
+      Tchunks = coh_data['Tchunks']
+      #window_length = [int(o.split()[1]) for o in coh_data['coh'].metadata.comments[0].split("--") if (o.startswith('window-length-seconds'))][0]
+      #min_ff = ff[0]
+      #max_ff = ff[-1]
+      
+      # figure out 1/N level (expectation value for coherence)
+      N = Tchunks * df # * window_length
+      inv_N = 1 / N
+      thresh = inv_N * opts.threshold
+      # make sure it's below 1, otherwise use 0.95 (arbitrary high value)
+      thresh = thresh < 1 and thresh or 0.95
+      
+      
+      # exclude 60 harmonics
+      #no_harm = exclude_harmonics(ff, 60, 0.1)
+      #eff_index = (ff > opts.min_ff) & (ff < opts.max_ff) & no_harm
+    
+      eff_index = (ff > 0) # just index; do nothing
+    
+      ifo, channel, gps_time = find_channel_name(coh_f)
+    
+      # save the data
+      if opts.verbose:
+        print >> sys.stderr, "saving data / prominent lines..."
+      save_lines()
+    else:
+      print >> sys.stderr, "HERE2"
+      print >> sys.stderr, coh_data['coh']
   connection.commit()
   connection.close()
   print >> sys.stderr, "moving %s to %s..."%(working_filename,opts.out_name)
   shutil.copy(working_filename,opts.out_name)
 
 finally:
-   # erase temporal database
-   if globals().has_key('working_filename'):
-     db = globals()["working_filename"]
-     if opts.verbose:
-       print >> sys.stderr, "removing temporary workspace '%s'..." % db
-     os.remove(db)
+  # erase temporal database
+  if globals().has_key('working_filename'):
+    db = globals()["working_filename"]
+    if opts.verbose:
+      print >> sys.stderr, "removing temporary workspace '%s'..." % db
+    os.remove(db)
 
 print >> sys.stderr, "Done!"
-

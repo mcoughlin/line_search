@@ -15,6 +15,7 @@ import cPickle
 import time
 import numpy
 import shutil
+from pylal import metaarray
 
 import matplotlib
 matplotlib.use('Agg')
@@ -368,6 +369,16 @@ def channelPage(channel_name,summary):
   wholeRange = division("wholeRange", "Coherence", ch+"_coh")
   powerSpectrum = division("powerSpectrum", "PSD", ch+"_psd")
   maxCoh = division("maxCoh","Max Coherence", ch+"_max")
+  coh10 = division("coh10","Coherence 0-10 %", ch+"_10")
+  coh20 = division("coh20","Coherence 10-20 %", ch+"_20")
+  coh30 = division("coh30","Coherence 20-30 %", ch+"_30")
+  coh40 = division("coh40","Coherence 30-40 %", ch+"_40")
+  coh50 = division("coh50","Coherence 40-50 %", ch+"_50")
+  coh60 = division("coh60","Coherence 50-60 %", ch+"_60")
+  coh70 = division("coh70","Coherence 60-70 %", ch+"_70")
+  coh80 = division("coh80","Coherence 70-80 %", ch+"_80")
+  coh90 = division("coh90","Coherence 80-90 %", ch+"_90")
+  coh100 = division("coh100","Coherence 90-100 %", ch+"_100")
 
   ################## main html code for the report page ####################
     
@@ -422,13 +433,33 @@ def channelPage(channel_name,summary):
   %s
   <!--max coh  plot-->
   %s
+  <!--10 plot-->
+  %s
+  <!--20 plot-->
+  %s
+  <!--30 plot-->
+  %s
+  <!--40 plot-->
+  %s
+  <!--50 plot-->
+  %s
+  <!--60 plot-->
+  %s
+  <!--70 plot-->
+  %s
+  <!--80 plot-->
+  %s
+  <!--90 plot-->
+  %s
+  <!--100 plot-->
+  %s
   </div>
   <div class="footer">
   Created by user %s on %s<br>
   </div>
   </body>
   </html>
-  """ % (ch,ch,wholeRange[0],powerSpectrum[0],maxCoh[0],line_f,line_c,segment_name,data_mat,param_name,pycoh_ini_name,summary_maker(summary),wholeRange[1],powerSpectrum[1],maxCoh[1],user,curTime)
+  """ % (ch,ch,wholeRange[0],powerSpectrum[0],maxCoh[0],line_f,line_c,segment_name,data_mat,param_name,pycoh_ini_name,summary_maker(summary),wholeRange[1],powerSpectrum[1],maxCoh[1],coh10[1],coh20[1],coh30[1],coh40[1],coh50[1],coh60[1],coh70[1],coh80[1],coh90[1],coh100[1],user,curTime)
          
   # write down
   chan_page = open(baseDir+"/channelPages/%s.html"%(ch),"w")
@@ -663,56 +694,77 @@ for coh_f in coh_list:
 
   # get info
   coh_data = io.load_dict(coh_f)
-  coh = abs(coh_data['coh'])**2
+  # coh = abs(coh_data['coh'])**2
+  coh = abs(coh_data['coh']**2)
   ff = coh_data['ff']
-  df = coh_data['coh'].metadata.df
-  Tchunks = coh_data['Tchunks']
-  window_length = [int(o.split()[1]) for o in coh_data['coh'].metadata.comments[0].split("--") if o.startswith('window-length-seconds')][0]
-  if opts.min_ff is not None:
-    min_ff = opts.min_ff
-  else:
-    min_ff = ff[0]
-  if opts.max_ff is not None:
-    max_ff = opts.max_ff
-  else:
-    max_ff = ff[-1]
+  print coh
+  for i in coh:
+    if i > 1:
+      print i
+  if isinstance(coh_data['coh'], metaarray.Spectrum):
+    df = coh_data['coh'].metadata.df
+    Tchunks = coh_data['Tchunks']
+    # window_length = [int(o.split()[1]) for o in coh_data['coh'].metadata.comments[0].split("--") if o.startswith('window-length-seconds')][0]
+    if opts.min_ff is not None:
+      min_ff = opts.min_ff
+    else:
+      min_ff = ff[0]
+    if opts.max_ff is not None:
+      max_ff = opts.max_ff
+    else:
+      max_ff = ff[-1]
 
-  # figure out 1/N level (expectation value for coherence)
-  N = Tchunks * window_length * df
-  inv_N = 1 / N
-  thresh = inv_N * opts.threshold
-  # make sure it's below 1, otherwise use 0.95 (arbitrary high value)
-  thresh = thresh < 1 and thresh or 0.95
-
-
-  # exclude 60 harmonics
-  no_harm = exclude_harmonics(ff, 60, 0.1)
-  eff_index = (ff > min_ff) & (ff < max_ff) & no_harm
-
-  file_prefix = find_channel_name(coh_f)
-
-  # save the data
-  if opts.verbose:
-    print >> sys.stderr, "saving data / prominent lines..."
-  max_coh = save_lines()
-
-  plot_coh(min_ff,max_ff,file_prefix+"_coh")
+    # figure out 1/N level (expectation value for coherence)
+    N = Tchunks * df # * window_length
+    inv_N = 1 / N
+    thresh = inv_N * opts.threshold
+    # make sure it's below 1, otherwise use 0.95 (arbitrary high value)
+    thresh = thresh < 1 and thresh or 0.95
 
 
-  # plot biggest coherence +- 1 Hz
-  if max_coh != None:
-    # use clustered range if available
-    plot_maxcoh(max_coh[0]-1,max_coh[2]+1,file_prefix+"_max")
-  else:
-    max_coh = max(zip(coh,ff))
-    results[file_prefix]['peak'] = (max_coh[1],max_coh[1],max_coh[1],max_coh[0])
-    plot_maxcoh(max_coh[1]-1,max_coh[1]+1,file_prefix+"_max")
+    # exclude 60 harmonics
+    no_harm = exclude_harmonics(ff, 60, 0.1)
+    eff_index = (ff > min_ff) & (ff < max_ff) & no_harm
+
+    file_prefix = find_channel_name(coh_f)
+
+    # save the data
+    if opts.verbose:
+      print >> sys.stderr, "saving data / prominent lines..."
+    max_coh = save_lines()
+
+    plot_coh(min_ff,max_ff,file_prefix+"_coh")
+
+
+    # plot biggest coherence +- 1 Hz
+    if max_coh != None:
+      # use clustered range if available
+      plot_maxcoh(max_coh[0]-1,max_coh[2]+1,file_prefix+"_max")
+    else:
+      max_coh = max(zip(coh,ff))
+      results[file_prefix]['peak'] = (max_coh[1],max_coh[1],max_coh[1],max_coh[0])
+      plot_maxcoh(max_coh[1]-1,max_coh[1]+1,file_prefix+"_max")
+    
+    # plot the supplemental graphs
+    plot_maxcoh(0,max_ff/10,file_prefix+"_10")
+    plot_maxcoh(max_ff/10,max_ff/10*2,file_prefix+"_20")
+    plot_maxcoh(max_ff/10*2,max_ff/10*3,file_prefix+"_30")
+    plot_maxcoh(max_ff/10*3,max_ff/10*4,file_prefix+"_40")
+    plot_maxcoh(max_ff/10*4,max_ff/10*5,file_prefix+"_50")
+    plot_maxcoh(max_ff/10*5,max_ff/10*6,file_prefix+"_60")
+    plot_maxcoh(max_ff/10*6,max_ff/10*7,file_prefix+"_70")
+    plot_maxcoh(max_ff/10*7,max_ff/10*8,file_prefix+"_80")
+    plot_maxcoh(max_ff/10*8,max_ff/10*9,file_prefix+"_90")
+    plot_maxcoh(max_ff/10*9,max_ff,file_prefix+"_100")
 
 
 ## plot PSD
 for psd_f in psd_list:
   psd_data = io.load_dict(psd_f)
-  psd = psd_data['totppc'] / psd_data['totweight']
+  if psd_data['totweight'] == 0:
+    continue
+  else:
+    psd = psd_data['totppc'] / psd_data['totweight']
   ff = [f * psd_data['totppc'].metadata.df for f in range(len(psd))]
   plot_psd()
 
