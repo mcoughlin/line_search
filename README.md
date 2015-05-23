@@ -38,6 +38,9 @@ mkdir gitrepo
 cd gitrepo
 git clone git@lisa.physics.carleton.edu:/mnt/gitrepo/line_search/ #get the password from Nelson
 
+repository has been moved to github: git clone https://github.com/mcoughlin/line_search.git
+
+
 cd ~
 LSCSOFT_SRCDIR=/usr1/${USER}/src/lscsoft/
 
