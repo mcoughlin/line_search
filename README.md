@@ -156,9 +156,18 @@ Creating and Submitting a Condor DAG
 
 To create the DAG you run run line_setup. Make sure you only do this inside of pycoh_runs or a similar directory, or you'll get a ton of junk files where you don't want them.
 
+Remember to target the pycoh module before running the ini file.
+
+source ~/pycoh_runs/setup_paths.sh
+
+Running the ini file for condor submission
+
 cd ~/pycoh_runs
 ~/gitrepo/line_search/line_setup –ini_file ./HIFOX_10.ini –verbose
 
+Once the output says that the jobs are ready for submitting to Condor move on, if error: check for any mistakes in previous lines.
+
+Submitting jobs to Condor
 condor_submit_dag -maxjobs 750 ./dags/(enter the tag of your run here).dag
 Then you can monitor the DAG's progress in real time:
 tail -f dags/(enter the tag of your run here).dag.dagman.out
