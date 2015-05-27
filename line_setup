@@ -75,7 +75,7 @@ class lineSearchJob(pipeline.CondorDAGJob):
     self.set_stdout_file('logs/$(logname)-$(cluster).out')
     self.set_stderr_file('logs/$(logname)-$(cluster).err')
     self.add_condor_cmd('getenv','True')
-    self.add_condor_cmd('accounting_group', 'ligo.prod.o1.detchar.syswide_coh.coherence')
+    cp.get("condor", "accounting_group")
 
     self.add_opt("result_dir",cp.get("output","out_dir"))
     self.add_opt("out_dir",web_outdir)
@@ -97,7 +97,7 @@ class dbMakerJob(pipeline.CondorDAGJob):
     self.set_stdout_file('logs/$(logname)-$(cluster).out')
     self.set_stderr_file('logs/$(logname)-$(cluster).err')
     self.add_condor_cmd('getenv','True')
-    self.add_condor_cmd('accounting group', 'ligo.prod.o1.detchar.syswide_coh.coherence')
+    cp.get("condor", "accounting_group")
 
     self.add_opt("result_dir",cp.get("output","out_dir"))
     self.add_opt("out_name",os.path.join(cp.get("output","out_dir"),cp.get("general","tag")+".db"))
