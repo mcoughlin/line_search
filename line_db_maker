@@ -214,10 +214,10 @@ try:
     coh_data = io.load_dict(coh_f)
     coh = abs(coh_data['coh'])**2
     ff = coh_data['ff']
-    f = open("/home/nathaniel.strauss/coh1test.txt",'w')
-    for i in coh:
-        f.write(str(i) +"\n")
-    f.close()
+    #f = open("/home/nathaniel.strauss/coh1test.txt",'w')
+    #for i in coh:
+    #    f.write(str(i) +"\n")
+    #f.close()
     if isinstance(coh_data['coh'], metaarray.Spectrum):
       df = coh_data['coh'].metadata.df
       Tchunks = coh_data['Tchunks']
