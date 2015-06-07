@@ -42,8 +42,8 @@ if exit > 0:
 print "finding start and end GPS times..."
 print os.popen('tconvert now - %d week'%opts.offset).readline()
 gpsNow = int(os.popen('tconvert now - %d week'%opts.offset).readline())
-gpsEnd = (gpsNow - 930960015) / (86400 * 2) * (86400 * 2) + 930960015
-gpsStart = gpsEnd - (86400 * 2)
+gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
+gpsStart = gpsEnd - (86400 * 7)
 tag = "%s_COH_%d_%d_SHORT"%(ifo,gpsStart,gpsEnd)
 
 print gpsEnd
@@ -73,10 +73,10 @@ if not os.path.isfile(segFile):
     sys.exit(1)
 
 
-#seg_list = segmentsUtils.fromsegwizard(open(segFile))
-#seg_list = [s for s in seg_list if abs(s) > 3000]
+seg_list = segmentsUtils.fromsegwizard(open(segFile))
+seg_list = [s for s in seg_list if abs(s) > 3000]
 
-seg_list = [[gpsStart, gpsEnd]]
+#seg_list = [[gpsStart, gpsEnd]]
 
 picked_seg = random.choice(seg_list)
 
