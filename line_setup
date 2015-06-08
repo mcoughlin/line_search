@@ -255,7 +255,8 @@ def write_pycoh_ini(ifo, tag, pycoh_ini, filename, segfile, chanlist):
 #      line = "chanlist1 = %s:LSC-DARM_ERR\n"%ifo
 #      line = "chanlist1 = %s:ALS-Y_ETM_LONG_IN1_DQ\n"%ifo
 #      line = "chanlist1 = %s:ALS-Y_ARM_IN1_DQ\n"%ifo
-      line = "chanlist1 = %s:OAF-CAL_DARM_DQ\n"%ifo
+#      line = "chanlist1 = %s:OAF-CAL_DARM_DQ\n"%ifo
+      line = "chanlist1 = %s:GDS-CALIB_STRAIN\n"%ifo
     if line.startswith("chanlist2"):
       line = "chanlist2 = %s\n"%(",".join(chanlist))
     if line.startswith("frametype1"):
@@ -403,9 +404,9 @@ if opts.verbose:
 inputfiles = {}
 if not os.path.isdir("inputfiles"): os.mkdir("inputfiles")
 
-for f in ("vstyle.css","S6_channel_list.txt"):
+for f in ("vstyle.css","S6_channel_list.txt","ER7_channel_list.txt"):
   if not os.path.isfile("inputfiles/%s"%f):
-    inputfile = "https://virgo.physics.carleton.edu/public/line_inputfiles/%s"%f
+    inputfile = "https://raw.githubusercontent.com/mcoughlin/line_search/master/inputfiles/%s"%f
     outfile = os.path.join("inputfiles",f)
     exit = os.system("wget -O %s %s"%(outfile,inputfile))
     if exit > 0:

@@ -1,3 +1,5 @@
+H1:GDS-CALIB_STRAIN
+L1:GDS-CALIB_STRAIN
 #
 
 # Second version of channel list to monitor for H1 line investigations
