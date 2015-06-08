@@ -260,7 +260,7 @@ def write_pycoh_ini(ifo, tag, pycoh_ini, filename, segfile, chanlist):
     if line.startswith("chanlist2"):
       line = "chanlist2 = %s\n"%(",".join(chanlist))
     if line.startswith("frametype1"):
-      line = "frametype1 = %s_R\n"%(ifo)
+      line = "frametype1 = %s_HOFT_C00\n"%(ifo)
     if line.startswith("frametype2"):
       line = "frametype2 = %s_R\n"%(ifo)
 
