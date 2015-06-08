@@ -198,7 +198,7 @@ def find_coincident(structure,df,result_dict):
 opts = parse_commandline()
 
 coh_list = [os.path.join(opts.result_dir,f) for f in os.listdir(opts.result_dir) if f.find("COH") != -1]
-try:
+if True:
   rename(opts.out_name)
   working_filename = KW_veto_utils.get_connection_filename(\
                      opts.out_name,tmp_path=opts.scratch_dir,verbose=opts.verbose)
@@ -212,6 +212,7 @@ try:
       print >> sys.stderr, "gathering info from %s"%coh_f
     # get info
     coh_data = io.load_dict(coh_f)
+
     coh = abs(coh_data['coh'])**2
     ff = coh_data['ff']
     #f = open("/home/nathaniel.strauss/coh1test.txt",'w')
@@ -253,12 +254,12 @@ try:
   print >> sys.stderr, "moving %s to %s..."%(working_filename,opts.out_name)
   shutil.copy(working_filename,opts.out_name)
 
-finally:
-  # erase temporal database
-  if globals().has_key('working_filename'):
-    db = globals()["working_filename"]
-    if opts.verbose:
-      print >> sys.stderr, "removing temporary workspace '%s'..." % db
-    os.remove(db)
+#finally:
+#  # erase temporal database
+#  if globals().has_key('working_filename'):
+#    db = globals()["working_filename"]
+#    if opts.verbose:
+#      print >> sys.stderr, "removing temporary workspace '%s'..." % db
+#    os.remove(db)
 
 print >> sys.stderr, "Done!"
