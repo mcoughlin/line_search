@@ -86,7 +86,12 @@ middle = int((picked_seg[1] - picked_seg[0])/2 + picked_seg[0])
 analyze_seg = segment(middle - 1500, middle + 1500)
 
 new_segFile = os.path.join(newDir,tag+"_segs.txt")
-open(new_segFile,'w').write("%d %d"%(analyze_seg[0],analyze_seg[1]))
+#open(new_segFile,'w').write("%d %d"%(analyze_seg[0],analyze_seg[1]))
+
+fid = open(new_segFile,'w')
+for seg in seg_list:
+    fid.write("%d %d"%(seg[0],seg[1]))
+fid.close()
 
 print "editting parameter file..."
 paramFile = os.path.join(newDir,tag+".ini")
@@ -101,7 +106,7 @@ for line in open(exampleIni).readlines():
   if line.startswith("ifo"):
     line = "ifo = %s\n"%ifo
   if line.startswith("analyzed_seg_files"):
-    line = "analyzed_seg_files = %s\n"%new_segFile
+    line = "analyzed_seg_files = %s\n"%segFile
   if line.startswith("scratchDir"):
     line = "scratchDir = %s\n"%scratchDir
   ini.append(line)
