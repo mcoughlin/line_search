@@ -90,7 +90,7 @@ new_segFile = os.path.join(newDir,tag+"_segs.txt")
 
 fid = open(new_segFile,'w')
 for seg in seg_list:
-    fid.write("%d %d"%(seg[0],seg[1]))
+    fid.write("%d %d\n"%(seg[0],seg[1]))
 fid.close()
 
 print "editting parameter file..."
