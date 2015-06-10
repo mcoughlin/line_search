@@ -107,8 +107,8 @@ for line in open(exampleIni).readlines():
     line = "ifo = %s\n"%ifo
   if line.startswith("analyzed_seg_files"):
     line = "analyzed_seg_files = %s\n"%new_segFile
-  if line.startswith("scratchDir"):
-    line = "scratchDir = %s\n"%scratchDir
+  if line.startswith("scratchdir"):
+    line = "scratchdir = %s\n"%scratchDir
   ini.append(line)
 open(paramFile,'w').write("".join(ini))
 

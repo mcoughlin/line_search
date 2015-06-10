@@ -219,7 +219,7 @@ def get_analyze_segment():
         if opts.verbose: print "subtracting %s"%cat_file  
         analyzed_segs = analyzed_segs - KW_veto_utils.read_segfile_xml(cat_file,opts.verbose)
 
-  analyzed_segs.coalesce
+  analyzed_segs.coalesce()
   if opts.verbose: 
       print "segs to be analyzed:"; print analyzed_segs
   # for name
