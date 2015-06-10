@@ -238,7 +238,7 @@ def get_analyze_segment():
 # Overwrite pycoh ini file
 ###############################################################################
 
-def write_pycoh_ini(ifo, tag, pycoh_ini, filename, segfile, chanlist):
+def write_pycoh_ini(ifo, tag, pycoh_ini, filename, segfile, chanlist, scratchDir):
   """
   """
   curTime = time.strftime('%m-%d-%Y %H:%M:%S',time.localtime())
@@ -263,6 +263,8 @@ def write_pycoh_ini(ifo, tag, pycoh_ini, filename, segfile, chanlist):
       line = "frametype1 = %s_HOFT_C00\n"%(ifo)
     if line.startswith("frametype2"):
       line = "frametype2 = %s_R\n"%(ifo)
+    if line.startswith("scratchdir"):
+      line = "scratchdir = %s\n"%scratchDir
 
     ini.append(line)
 
@@ -674,7 +676,7 @@ while i * 20 < len(channel_list):
   pycoh_ini_name = os.path.join(pycoh_dir,"pycoh.ini")
   copied_seg = os.path.join(pycoh_dir,os.path.basename(segment_file))
   shutil.copy(segment_file, copied_seg)
-  write_pycoh_ini(cp.get("input","ifo"), tag, cp.get("input","pycoh_ini"), pycoh_ini_name, copied_seg, channel_list[(i-1)*20:i*20])
+  write_pycoh_ini(cp.get("input","ifo"), tag, cp.get("input","pycoh_ini"), pycoh_ini_name, copied_seg, channel_list[(i-1)*20:i*20],cp.get("condor","scratchdir"))
   run_seed(tag,pycoh_ini_name,pycoh_dir)
 
 
