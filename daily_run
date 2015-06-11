@@ -6,6 +6,7 @@ import time
 import glob
 import optparse
 import random
+import numpy as np
 
 from glue.segments import segment, segmentlist
 from glue import segmentsUtils
@@ -88,9 +89,12 @@ analyze_seg = segment(middle - 1500, middle + 1500)
 new_segFile = os.path.join(newDir,tag+"_segs.txt")
 #open(new_segFile,'w').write("%d %d"%(analyze_seg[0],analyze_seg[1]))
 
+jobdur = 3600
 fid = open(new_segFile,'w')
 for seg in seg_list:
-    fid.write("%d %d\n"%(seg[0],seg[1]))
+    gpss = np.arange(seg[0],seg[1],jobdur)
+    for ii in xrange(len(gpss)-1):
+        fid.write("%d %d\n"%(gpss[ii],gpss[ii+1]-1))
 fid.close()
 
 print "editting parameter file..."
