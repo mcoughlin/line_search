@@ -47,10 +47,6 @@ gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
 gpsStart = gpsEnd - (86400 * 7)
 tag = "%s_COH_%d_%d_SHORT"%(ifo,gpsStart,gpsEnd)
 
-print gpsEnd
-print gpsStart
-
-
 newDir = os.path.join("/home/%s/LineSearch/weeklies" % user,opts.ifo,tag)
 if not os.path.isdir(newDir):
   print "creating directory %s"%newDir
@@ -93,6 +89,7 @@ jobdur = 3600
 fid = open(new_segFile,'w')
 for seg in seg_list:
     gpss = np.arange(seg[0],seg[1],jobdur)
+    gpss = np.append(gpss,seg[1])
     for ii in xrange(len(gpss)-1):
         fid.write("%d %d\n"%(gpss[ii],gpss[ii+1]-1))
 fid.close()
