@@ -1,0 +1,130 @@
+#!/usr/bin/python
+
+import os
+import sys
+import time
+import glob
+import optparse
+import random
+import numpy as np
+
+from glue.segments import segment, segmentlist
+from glue import segmentsUtils
+
+parser = optparse.OptionParser(usage=__doc__)
+parser.add_option("-i", "--ifo", help="IFO to be analyzed. Required.")
+parser.add_option("-o", "--offset", type="int", default=0,
+                  help="Run for --offset weeks earlier.")
+
+opts, args = parser.parse_args()
+
+if opts.ifo not in ("H1","L1"):
+  print >> sys.stderr, "--ifo %s is not supported."%opts.ifo
+  sys.exit(1)
+
+curTime = time.strftime('%m-%d-%Y %H:%M:%S',time.localtime())
+user = os.environ['USER']
+ifo = opts.ifo
+
+print "running coherence code..."
+print "date: %s"%curTime
+print "user: %s"%user
+
+if not os.path.isfile("/home/%s/pycoh_runs/setup_paths.sh" % user):
+  print >> sys.stderr, "FAILED!!"
+  sys.exit(1)
+
+exit = os.system("source /home/%s/pycoh_runs/setup_paths.sh" % user)
+if exit > 0:
+  print >> sys.stderr, "FAILED"
+  sys.exit(1)
+
+
+print "finding start and end GPS times..."
+print os.popen('tconvert now - %d week'%opts.offset).readline()
+gpsNow = int(os.popen('tconvert now - %d week'%opts.offset).readline())
+gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
+gpsStart = gpsEnd - (86400 * 7)
+tag = "%s_COH_%d_%d_SHORT"%(ifo,gpsStart,gpsEnd)
+
+newDir = os.path.join("/home/%s/LineSearch/weeklies_long" % user,opts.ifo,tag)
+if not os.path.isdir(newDir):
+  print "creating directory %s"%newDir
+  os.makedirs(newDir)
+print "getting segment file..."
+
+scratchDir = os.path.join(newDir, 'scratch')
+if not os.path.isdir(scratchDir):
+	print "creating directory %s"%scratchDir
+	os.makedirs(scratchDir)
+
+
+
+segFile = os.path.join(newDir,tag+"_segs.tmp")
+if not os.path.isfile(segFile):
+  cmd = "ligolw_segment_query_dqsegdb --segment-url https://dqsegdb5.phy.syr.edu --query-segments --include-segments '%s:DMT-DC_READOUT' --gps-start-time %d --gps-end-time %d | ligolw_print -t segment -c start_time -c end_time -d ' ' > %s"%(ifo,gpsStart,gpsEnd,segFile)
+  print cmd
+  exit = os.system(cmd)
+  if exit > 0:
+    print "failed: %s"%cmd
+    sys.exit(1)
+
+
+seg_list = segmentsUtils.fromsegwizard(open(segFile))
+seg_list = [s for s in seg_list if abs(s) > 3000]
+
+#seg_list = [[gpsStart, gpsEnd]]
+
+picked_seg = random.choice(seg_list)
+
+
+# make it to 5 average length, from the middle
+middle = int((picked_seg[1] - picked_seg[0])/2 + picked_seg[0])
+analyze_seg = segment(middle - 1500, middle + 1500)
+
+new_segFile = os.path.join(newDir,tag+"_segs.txt")
+#open(new_segFile,'w').write("%d %d"%(analyze_seg[0],analyze_seg[1]))
+
+jobdur = 3600
+fid = open(new_segFile,'w')
+for seg in seg_list:
+    #gpss = np.arange(seg[0],seg[1],jobdur)
+    #for ii in xrange(len(gpss)-1):
+    if seg[1] - seg[0] < jobdur: continue
+    fid.write("%d %d\n"%(seg[0],seg[1]))
+fid.close()
+
+print "editting parameter file..."
+paramFile = os.path.join(newDir,tag+".ini")
+
+exampleIni = "/home/%s/gitrepo/line_search/short_run.ini" % user
+ini = []
+for line in open(exampleIni).readlines():
+  if line.startswith("; id:"):
+    line = "; id: %s: %s\n"%(curTime,user)
+  if line.startswith("tag"):
+    line = "tag = %s\n"%tag
+  if line.startswith("ifo"):
+    line = "ifo = %s\n"%ifo
+  if line.startswith("analyzed_seg_files"):
+    line = "analyzed_seg_files = %s\n"%new_segFile
+  if line.startswith("scratchdir"):
+    line = "scratchdir = %s\n"%scratchDir
+  ini.append(line)
+open(paramFile,'w').write("".join(ini))
+
+cmd = "source /home/%s/pycoh_runs/setup_paths.sh"%user
+
+os.chdir(newDir)
+cmd = "/home/%s/gitrepo/line_search/line_setup -i %s -v"%(user, paramFile)
+exit = os.system(cmd)
+if exit > 0:
+  print sys.stderr, "failed: %s"%cmd
+  sys.exit(1)
+
+dagFile = os.path.join("dags",tag+".dag")
+print "running %s..."%dagFile
+cmd = "condor_submit_dag -maxjobs 100 %s"%dagFile
+exit = os.system(cmd)
+if exit > 0:
+  print "failed: %s"%cmd
