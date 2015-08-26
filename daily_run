@@ -45,6 +45,10 @@ print os.popen('tconvert now - %d week'%opts.offset).readline()
 gpsNow = int(os.popen('tconvert now - %d week'%opts.offset).readline())
 gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
 gpsStart = gpsEnd - (86400 * 7)
+
+gpsEnd = 1124582417
+gpsStart = 1123891217
+
 tag = "%s_COH_%d_%d_SHORT"%(ifo,gpsStart,gpsEnd)
 
 newDir = os.path.join("/home/%s/LineSearch/weeklies" % user,opts.ifo,tag)
@@ -113,7 +117,6 @@ for line in open(exampleIni).readlines():
   ini.append(line)
 open(paramFile,'w').write("".join(ini))
 
-cmd = "source /home/%s/pycoh_runs/setup_paths.sh"%user
 
 os.chdir(newDir)
 cmd = "/home/%s/gitrepo/line_search/line_setup -i %s -v"%(user, paramFile)

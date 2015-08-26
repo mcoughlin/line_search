@@ -1,6 +1,6 @@
 
 nodes = 1:500;
-user = 'mcoughlin';
+user = 'eric.coughlin';
 
 for i = 1:length(nodes)
 

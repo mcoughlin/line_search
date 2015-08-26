@@ -47,8 +47,8 @@ gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
 gpsStart = gpsEnd - (86400 * 7)
 
 
-gpsStart = 1116633616
-gpsEnd = 1118275216
+gpsStart = 1123891217
+gpsEnd = 1124582417
 
 
 tag = "%s_COH_%d_%d_SHORT_%d"%(ifo,gpsStart,gpsEnd,100)
