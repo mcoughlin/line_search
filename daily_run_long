@@ -62,7 +62,7 @@ if not os.path.isdir(scratchDir):
 
 segFile = os.path.join(newDir,tag+"_segs.tmp")
 if not os.path.isfile(segFile):
-  cmd = "ligolw_segment_query_dqsegdb --segment-url https://dqsegdb5.phy.syr.edu --query-segments --include-segments '%s:DMT-DC_READOUT' --gps-start-time %d --gps-end-time %d | ligolw_print -t segment -c start_time -c end_time -d ' ' > %s"%(ifo,gpsStart,gpsEnd,segFile)
+  cmd = "ligolw_segment_query_dqsegdb --segment-url https://segments.ligo.org --query-segments --include-segments '%s:DMT-DC_READOUT' --gps-start-time %d --gps-end-time %d | ligolw_print -t segment -c start_time -c end_time -d ' ' > %s"%(ifo,gpsStart,gpsEnd,segFile)
   print cmd
   exit = os.system(cmd)
   if exit > 0:
