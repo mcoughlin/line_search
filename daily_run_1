@@ -125,7 +125,7 @@ if exit > 0:
 
 dagFile = os.path.join("dags",tag+".dag")
 print "running %s..."%dagFile
-cmd = "condor_submit_dag -maxjobs 100 %s"%dagFile
+cmd = "condor_submit_dag -maxjobs 10 %s"%dagFile
 exit = os.system(cmd)
 if exit > 0:
   print "failed: %s"%cmd
