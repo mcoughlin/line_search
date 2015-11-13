@@ -2,6 +2,7 @@
 #source install_pycoh.sh
 
 cd ~
+source /home/eric.coughlin/.bashrc
 source ~/pycoh_runs/setup_paths.sh
 
 #python ~/gitrepo/line_search/daily_run --ifo L1
