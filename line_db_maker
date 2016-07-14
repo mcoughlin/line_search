@@ -24,7 +24,7 @@ except ImportError:
    from pysqlite2 import dbapi2 as sqlite3
 
 from pylal import KW_veto_utils
-from pycoh import io
+from pycoh import iopycoh
 
 
 __author__ = "Tomoki Isogai <isogait@carleton.edu>"
@@ -211,7 +211,7 @@ if True:
     if opts.verbose: 
       print >> sys.stderr, "gathering info from %s"%coh_f
     # get info
-    coh_data = io.load_dict(coh_f)
+    coh_data = iopycoh.load_dict(coh_f)
 
     coh = abs(coh_data['coh'])**2
     ff = coh_data['ff']
