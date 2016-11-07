@@ -29,7 +29,7 @@ matplotlib.rcParams.update({
 
 import pylab
 
-from pycoh import io
+from pycoh import iopycoh
 
 import scipy.io
 
@@ -693,7 +693,7 @@ for coh_f in coh_list:
     print >> sys.stderr, "gathering info from %s"%coh_f
 
   # get info
-  coh_data = io.load_dict(coh_f)
+  coh_data = iopycoh.load_dict(coh_f)
   # coh = abs(coh_data['coh'])**2
   coh = abs(coh_data['coh']**2)
   ff = coh_data['ff']
@@ -760,7 +760,7 @@ for coh_f in coh_list:
 
 ## plot PSD
 for psd_f in psd_list:
-  psd_data = io.load_dict(psd_f)
+  psd_data = iopycoh.load_dict(psd_f)
   if psd_data['totweight'] == 0:
     continue
   else:
