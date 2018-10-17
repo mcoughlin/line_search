@@ -30,7 +30,8 @@ from glue import segmentsUtils
 from glue.segments import segment, segmentlist
 from glue.iterutils import *
 
-from pylal import KW_veto_utils
+#from pylal import KW_veto_utils
+import KW_veto_utils
 
 __author__ = "Tomoki Isogai <isogait@carleton.edu>"
 __date__ = "$08/01/2009"
