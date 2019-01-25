@@ -1,0 +1,35 @@
+#!/usr/bin/python
+
+import os
+import sys
+import time
+import glob
+import optparse
+import random
+import numpy as np
+
+from glue.segments import segment, segmentlist
+from glue import segmentsUtils
+
+parser = optparse.OptionParser(usage=__doc__)
+parser.add_option("-u", "--user", default="michael.coughlin")
+parser.add_option("-m", "--memory", type="int", default=16384)
+
+opts, args = parser.parse_args()
+
+condor_command = "condor_q -dag -nobatch %s"%opts.user
+filename = "tmp.dat"
+os.system("%s > %s"%(condor_command,filename))
+
+lines = [line.rstrip('\n') for line in open(filename)]
+for line in lines:
+    lineSplit = list(filter(None,line.split(" ")))
+    if len(lineSplit) == 0: continue
+    if lineSplit[0] in ["--","ID"]: continue
+    if lineSplit[5] == "H":
+        jobid = float(lineSplit[0])
+        condor_command = "condor_qedit %d RequestMemory %d"%(jobid,opts.memory)
+        os.system(condor_command)
+
+condor_command = "condor_release %s"%opts.user
+os.system(condor_command)
