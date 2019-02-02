@@ -15,7 +15,7 @@ import cPickle
 import time
 import numpy
 import shutil
-from pylal import metaarray
+from pycoh import metaarray
 
 import matplotlib
 matplotlib.use('Agg')
