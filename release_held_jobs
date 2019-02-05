@@ -14,11 +14,15 @@ from glue import segmentsUtils
 parser = optparse.OptionParser(usage=__doc__)
 parser.add_option("-u", "--user", default="michael.coughlin")
 parser.add_option("-m", "--memory", type="int", default=16384)
+parser.add_option("--universe", type="int", default=12)
+parser.add_option("--doMemory",  action="store_true", default=False)
+parser.add_option("--doUniverse",  action="store_true", default=False)
 
 opts, args = parser.parse_args()
 
 condor_command = "condor_q -dag -nobatch %s"%opts.user
 filename = "tmp.dat"
+os.system("rm %s"%(filename))
 os.system("%s > %s"%(condor_command,filename))
 
 lines = [line.rstrip('\n') for line in open(filename)]
@@ -28,8 +32,13 @@ for line in lines:
     if lineSplit[0] in ["--","ID"]: continue
     if lineSplit[5] == "H":
         jobid = float(lineSplit[0])
-        condor_command = "condor_qedit %d RequestMemory %d"%(jobid,opts.memory)
-        os.system(condor_command)
+        if opts.doMemory:
+            condor_command = "condor_qedit %d RequestMemory %d"%(jobid,opts.memory)
+            os.system(condor_command)
+        if opts.doUniverse:
+            print("Assigning %d to JobUniverse %d"%(jobid,opts.universe))
+            condor_command = "condor_qedit %d JobUniverse %d"%(jobid,opts.universe)
+            os.system(condor_command)
 
 condor_command = "condor_release %s"%opts.user
 os.system(condor_command)
