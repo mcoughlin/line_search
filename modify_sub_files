@@ -1,0 +1,31 @@
+#!/usr/bin/python
+
+import os
+import sys
+import glob
+import optparse
+import in_place
+
+def walk_through_files(path, file_extension='.html'):
+   for (dirpath, dirnames, filenames) in os.walk(path):
+      for filename in filenames:
+         if filename.endswith(file_extension): 
+            yield os.path.join(dirpath, filename)
+
+parser = optparse.OptionParser(usage=__doc__)
+parser.add_option("-d", "--dagDirectory", default="/home/mcoughlin/LineSearch/postO2/weeklies/L1/L1_COH_1228521615_1229126415_SHORT_1")
+parser.add_option("-a","--analysisType", default="formPSDCSD")
+
+opts, args = parser.parse_args()
+
+for fname in walk_through_files(opts.dagDirectory,
+          file_extension='.%s.sub'%opts.analysisType):
+
+    cp_command = "cp %s %s"%(fname,fname.replace("sub","sub.cp"))
+    os.system(cp_command)
+
+    with in_place.InPlace(fname) as fid:
+        for line in fid:
+            line = line.replace('vanilla', 'local')
+            fid.write(line)
+
