@@ -47,7 +47,7 @@ gpsEnd = (gpsNow - 930960015) / (86400 * 7) * (86400 * 7) + 930960015
 
 tag = "%s_COH_%d_%d_SHORT_%d"%(ifo,gpsStart,gpsEnd,100)
 
-newDir = os.path.join("/home/%s/LineSearch/O2/weeklies" % user,opts.ifo,tag)
+newDir = os.path.join("/home/%s/LineSearch/O3/weeklies" % user,opts.ifo,tag)
 if not os.path.isdir(newDir):
   print "creating directory %s"%newDir
   os.makedirs(newDir)

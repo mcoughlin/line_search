@@ -13,7 +13,7 @@ from glue import segmentsUtils
 
 parser = optparse.OptionParser(usage=__doc__)
 parser.add_option("-u", "--user", default="michael.coughlin")
-parser.add_option("-m", "--memory", type="int", default=16384)
+parser.add_option("-m", "--memory", type="int", default=4096)
 
 opts, args = parser.parse_args()
 
