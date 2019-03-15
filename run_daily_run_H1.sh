@@ -2,14 +2,12 @@
 #source install_pycoh.sh
 
 
-cd ~
-source /home/eric.coughlin/.bashrc
-source ~/pycoh_runs/setup_paths.sh
+cd ~/gitrepo/line_search
 
-#python ~/gitrepo/line_search/daily_run --ifo L1
+kinit coherencetool_lho/robot/ldas-pcdev2.ligo-wa.caltech.edu@LIGO.ORG -k -t certs/coherencetool.lho
+ligo-proxy-init -k
 
-python ~/gitrepo/line_search/daily_run_1 --ifo H1
+source ~/pycoh/etc/pycoh-user-env.sh
 
-#python ~/gitrepo/line_search/daily_run_10 --ifo L1
+python ~/gitrepo/line_search/daily_run_32 --ifo H1
 
-#python ~/gitrepo/line_search/daily_run_100 --ifo L1
