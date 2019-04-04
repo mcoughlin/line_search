@@ -1,6 +1,7 @@
 #cd ~/pycoh
 #source install_pycoh.sh
 
+source ~/.bashrc
 
 cd ~/gitrepo/line_search
 
