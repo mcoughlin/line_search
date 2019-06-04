@@ -14,9 +14,11 @@ from glue import segmentsUtils
 parser = optparse.OptionParser(usage=__doc__)
 parser.add_option("-u", "--user", default="michael.coughlin")
 parser.add_option("-m", "--memory", type="int", default=16384)
+parser.add_option("-j", "--jobtype", default="H")
 parser.add_option("--universe", type="int", default=12)
 parser.add_option("--doMemory",  action="store_true", default=False)
 parser.add_option("--doUniverse",  action="store_true", default=False)
+parser.add_option("--doRemove",  action="store_true", default=False)
 
 opts, args = parser.parse_args()
 
@@ -30,10 +32,13 @@ for line in lines:
     lineSplit = list(filter(None,line.split(" ")))
     if len(lineSplit) == 0: continue
     if lineSplit[0] in ["--","ID"]: continue
-    if lineSplit[5] == "H":
+    if lineSplit[5] == opts.jobtype:
         jobid = float(lineSplit[0])
         if opts.doMemory:
             condor_command = "condor_qedit %d RequestMemory %d"%(jobid,opts.memory)
+            os.system(condor_command)
+        if opts.doRemove:
+            condor_command = "condor_rm %d"%(jobid)
             os.system(condor_command)
         if opts.doUniverse:
             print("Assigning %d to JobUniverse %d"%(jobid,opts.universe))
