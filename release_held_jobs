@@ -8,9 +8,6 @@ import optparse
 import random
 import numpy as np
 
-from glue.segments import segment, segmentlist
-from glue import segmentsUtils
-
 parser = optparse.OptionParser(usage=__doc__)
 parser.add_option("-u", "--user", default="michael.coughlin")
 parser.add_option("-m", "--memory", type="int", default=16384)
